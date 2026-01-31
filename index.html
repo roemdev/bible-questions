@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generador Bíblico</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap');
+        
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background: #f1f5f9;
+            color: #1e293b;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .bible-card {
+            background: white;
+            border-radius: 2.5rem;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.08);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+            box-shadow: 0 10px 15px -3px rgba(37, 99, 235, 0.4);
+        }
+
+        .btn-primary:active {
+            transform: scale(0.96);
+        }
+
+        .loader {
+            border-top-color: #2563eb;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Estilo de desenfoque mejorado */
+        .blur-content {
+            filter: blur(10px);
+            opacity: 0.3;
+            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+            user-select: none;
+            pointer-events: none;
+        }
+
+        .reveal-active .blur-content {
+            filter: blur(0);
+            opacity: 1;
+            user-select: text;
+            pointer-events: auto;
+        }
+
+        .app-container {
+            max-width: 450px;
+            margin: 0 auto;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+    </style>
+</head>
+<body class="bg-slate-100">
+
+    <div class="app-container p-5">
+        <!-- Header -->
+        <header class="py-8 text-center">
+            <div class="inline-flex items-center justify-center w-14 h-14 bg-blue-600 text-white rounded-2xl mb-4 shadow-xl">
+                <i class="fas fa-book-open text-xl"></i>
+            </div>
+            <h1 class="text-2xl font-extrabold text-slate-800 tracking-tight">Preguntas Bíblicas</h1>
+            <p class="text-slate-500 text-sm font-medium">Dinámicas y juegos grupales</p>
+        </header>
+
+        <!-- Selector de Dificultad -->
+        <div class="flex bg-white/80 backdrop-blur-sm p-1.5 rounded-2xl shadow-sm mb-6 border border-slate-200">
+            <button onclick="setDifficulty('Aleatorio')" id="btn-Aleatorio" class="diff-tab flex-1 py-2.5 text-xs font-bold rounded-xl transition-all bg-blue-600 text-white">Aleatorio</button>
+            <button onclick="setDifficulty('Básico')" id="btn-Básico" class="diff-tab flex-1 py-2.5 text-xs font-bold rounded-xl transition-all text-slate-400">Básico</button>
+            <button onclick="setDifficulty('Medio')" id="btn-Medio" class="diff-tab flex-1 py-2.5 text-xs font-bold rounded-xl transition-all text-slate-400">Medio</button>
+            <button onclick="setDifficulty('Alto')" id="btn-Alto" class="diff-tab flex-1 py-2.5 text-xs font-bold rounded-xl transition-all text-slate-400">Alto</button>
+        </div>
+
+        <!-- Card Principal -->
+        <main class="flex-grow flex flex-col">
+            <div class="bible-card flex-grow flex flex-col p-8 relative overflow-hidden border border-white">
+                
+                <div id="content-area" class="flex-grow flex flex-col justify-center text-center">
+                    <!-- Pantalla Inicial -->
+                    <div id="initial-state" class="space-y-4">
+                        <div class="w-20 h-20 bg-blue-50 text-blue-300 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <i class="fas fa-sparkles text-3xl"></i>
+                        </div>
+                        <p class="text-slate-400 font-semibold px-6">Listo para comenzar una nueva dinámica</p>
+                    </div>
+
+                    <!-- Contenido de la Pregunta -->
+                    <div id="question-content" class="hidden space-y-10">
+                        <div>
+                            <span id="diff-badge" class="px-4 py-1.5 rounded-full text-[10px] font-extrabold uppercase tracking-widest mb-6 inline-block"></span>
+                            <h2 id="question-text" class="text-2xl font-extrabold text-slate-800 leading-tight"></h2>
+                        </div>
+
+                        <!-- Zona de Respuesta Difuminada -->
+                        <div id="answer-container" class="relative group cursor-pointer" onclick="toggleReveal()">
+                            <div class="p-6 bg-slate-50 rounded-[2rem] border-2 border-dashed border-slate-200 transition-colors group-hover:border-blue-200 group-hover:bg-blue-50/30">
+                                
+                                <div id="blur-wrapper" class="blur-content">
+                                    <p id="answer-text" class="text-xl font-bold text-blue-700"></p>
+                                    <div class="h-px bg-blue-100 w-12 mx-auto my-3"></div>
+                                    <p id="reference-text" class="text-sm font-semibold text-blue-400 italic"></p>
+                                </div>
+
+                                <div id="tap-hint" class="absolute inset-0 flex items-center justify-center transition-opacity duration-300">
+                                    <span class="bg-white/80 backdrop-blur px-4 py-2 rounded-full shadow-sm text-xs font-bold text-slate-500 border border-slate-100 uppercase tracking-tighter">
+                                        <i class="fas fa-eye mr-2"></i> Toca para ver
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Cargando -->
+                    <div id="loader" class="hidden">
+                        <div class="loader ease-linear rounded-full border-4 border-t-4 border-slate-200 h-14 w-14 mx-auto mb-6"></div>
+                        <p class="text-slate-400 font-bold text-sm tracking-wide">CONSULTANDO...</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Botón de Acción -->
+            <button onclick="generateQuestion()" id="main-btn" class="btn-primary w-full py-5 rounded-[2rem] mt-8 text-white font-extrabold text-lg flex items-center justify-center space-x-3 transition-all">
+                <span>GENERAR PREGUNTA</span>
+                <i class="fas fa-magic"></i>
+            </button>
+        </main>
+
+        <!-- Footer -->
+        <footer class="py-8 text-center">
+            <p class="text-slate-400 text-[10px] font-black tracking-[0.2em] uppercase opacity-50">Biblia Generator Pro &bull; v2.5</p>
+        </footer>
+    </div>
+
+    <!-- Toast Informativo -->
+    <div id="toast" class="fixed top-12 left-1/2 -translate-x-1/2 px-6 py-3 rounded-full bg-slate-900 text-white text-xs font-bold shadow-2xl opacity-0 transition-all pointer-events-none z-50"></div>
+
+    <script>
+        const apiKey = ""; 
+        let currentDifficulty = "Aleatorio";
+        let isGenerating = false;
+        let isRevealed = false;
+
+        function setDifficulty(level) {
+            currentDifficulty = level;
+            document.querySelectorAll('.diff-tab').forEach(btn => {
+                btn.classList.remove('bg-blue-600', 'text-white');
+                btn.classList.add('text-slate-400');
+            });
+            document.getElementById(`btn-${level}`).classList.add('bg-blue-600', 'text-white');
+        }
+
+        function toggleReveal() {
+            const container = document.getElementById('answer-container');
+            const hint = document.getElementById('tap-hint');
+            isRevealed = !isRevealed;
+            
+            if (isRevealed) {
+                container.classList.add('reveal-active');
+                hint.classList.add('opacity-0');
+            } else {
+                container.classList.remove('reveal-active');
+                hint.classList.remove('opacity-0');
+            }
+        }
+
+        async function generateQuestion() {
+            if (isGenerating) return;
+            
+            isGenerating = true;
+            isRevealed = false;
+            
+            // UI Update
+            document.getElementById('initial-state').classList.add('hidden');
+            document.getElementById('question-content').classList.add('hidden');
+            document.getElementById('loader').classList.remove('hidden');
+            document.getElementById('main-btn').classList.add('opacity-50', 'pointer-events-none');
+            document.getElementById('answer-container').classList.remove('reveal-active');
+            document.getElementById('tap-hint').classList.remove('opacity-0');
+            
+            const diffPrompt = currentDifficulty === "Aleatorio" ? "Básico, Medio o Alto" : currentDifficulty;
+            
+            const prompt = `Genera una pregunta de conocimiento general de la Biblia. 
+            Dificultad: ${diffPrompt}.
+            REGLAS:
+            - Solo formato JSON.
+            - Estructura: {"pregunta": "...", "respuesta": "...", "referencia": "...", "dificultad": "..."}
+            - Evita preguntas de genealogías aburridas o medidas técnicas imposibles.`;
+
+            try {
+                const response = await callGemini(prompt);
+                const data = JSON.parse(response);
+                displayData(data);
+            } catch (error) {
+                console.error(error);
+                showToast("Error de conexión. Inténtalo de nuevo.");
+                document.getElementById('initial-state').classList.remove('hidden');
+            } finally {
+                isGenerating = false;
+                document.getElementById('loader').classList.add('hidden');
+                document.getElementById('main-btn').classList.remove('opacity-50', 'pointer-events-none');
+            }
+        }
+
+        function displayData(data) {
+            document.getElementById('question-text').innerText = data.pregunta;
+            document.getElementById('answer-text').innerText = data.respuesta;
+            document.getElementById('reference-text').innerText = data.referencia;
+            
+            const badge = document.getElementById('diff-badge');
+            badge.innerText = data.dificultad;
+            
+            const theme = {
+                'Básico': 'bg-green-100 text-green-700',
+                'Medio': 'bg-blue-100 text-blue-700',
+                'Alto': 'bg-purple-100 text-purple-700'
+            };
+            badge.className = `px-4 py-1.5 rounded-full text-[10px] font-extrabold uppercase tracking-widest mb-6 inline-block ${theme[data.dificultad] || theme['Medio']}`;
+
+            document.getElementById('question-content').classList.remove('hidden');
+        }
+
+        function showToast(msg) {
+            const t = document.getElementById('toast');
+            t.innerText = msg;
+            t.style.opacity = "1";
+            setTimeout(() => t.style.opacity = "0", 3000);
+        }
+
+        async function callGemini(query) {
+            const system = "Eres un asistente de juegos bíblicos. Responde solo en JSON plano.";
+            const payload = {
+                contents: [{ parts: [{ text: query }] }],
+                systemInstruction: { parts: [{ text: system }] },
+                generationConfig: { responseMimeType: "application/json" }
+            };
+
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+
+            for (let i = 0; i < 5; i++) {
+                try {
+                    const res = await fetch(url, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    if (!res.ok) throw new Error();
+                    const result = await res.json();
+                    return result.candidates[0].content.parts[0].text;
+                } catch (e) {
+                    if (i === 4) throw e;
+                    await new Promise(r => setTimeout(r, Math.pow(2, i) * 1000));
+                }
+            }
+        }
+    </script>
+</body>
+</html>
