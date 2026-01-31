@@ -1,8 +1,8 @@
 ---
-/**
- * BibleQuestions v5.0 - Edición Editorial Clásica
- */
-import { BookOpen, ChevronRight, RotateCcw, CheckCircle2, Quote } from 'lucide-astro';
+import { BookOpen, ChevronRight, Quote } from 'lucide-astro';
+import data from '../data/questions.json';
+
+const { preguntas } = data;
 ---
 
 <div class="w-full max-w-[440px] mx-auto flex flex-col min-h-[90vh] opacity-0 transition-opacity duration-1000 ease-in-out select-none" id="app-container">
@@ -17,7 +17,6 @@ import { BookOpen, ChevronRight, RotateCcw, CheckCircle2, Quote } from 'lucide-a
   </header>
 
   <main class="grow flex flex-col px-6">
-    
     <div class="bg-white border border-slate-200 shadow-[0_1px_3px_rgba(0,0,0,0.05)] grow flex flex-col relative overflow-hidden" id="main-card">
       
       <div id="state-initial" class="grow flex flex-col items-center justify-center text-center p-10 space-y-8 animate-fade-in">
@@ -34,7 +33,7 @@ import { BookOpen, ChevronRight, RotateCcw, CheckCircle2, Quote } from 'lucide-a
 
       <div id="state-loading" class="hidden grow flex flex-col items-center justify-center p-10 space-y-4">
         <div class="w-8 h-8 border-2 border-slate-900 border-t-transparent rounded-full animate-spin"></div>
-        <p class="text-[10px] font-black text-slate-900 uppercase tracking-widest">Consultando</p>
+        <p class="text-[10px] font-black text-slate-900 uppercase tracking-widest">Buscando en la Palabra</p>
       </div>
 
       <div id="state-question" class="hidden grow flex flex-col p-10 animate-fade-in">
@@ -58,11 +57,6 @@ import { BookOpen, ChevronRight, RotateCcw, CheckCircle2, Quote } from 'lucide-a
           </div>
         </div>
       </div>
-
-      <div id="state-error" class="hidden grow flex flex-col items-center justify-center text-center p-10 space-y-6">
-        <p id="error-message" class="text-sm font-serif italic text-slate-600"></p>
-        <button id="retry-btn" class="text-[10px] font-black text-slate-900 uppercase tracking-widest border-b-2 border-slate-900 pb-1">Reintentar</button>
-      </div>
     </div>
 
     <button id="generate-btn" class="cursor-pointer w-full py-5 mt-8 bg-slate-900 text-white transition-all active:bg-slate-800 flex items-center justify-center space-x-3 group">
@@ -76,70 +70,53 @@ import { BookOpen, ChevronRight, RotateCcw, CheckCircle2, Quote } from 'lucide-a
   </main>
 </div>
 
-<style>
-  /* Importación de fuente serif para el toque clásico */
-  @import url('https://fonts.googleapis.com/css2?family=Crimson+Pro:italic,wght@0,400;0,700;1,400&family=Inter:wght@400;700;900&display=swap');
-
-  .font-serif { font-family: 'Crimson Pro', serif; }
-  .font-sans { font-family: 'Inter', sans-serif; }
-
-  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-  .animate-fade-in { animation: fadeIn 0.8s ease-in-out forwards; }
-  
-  body {
-    background-color: #fcfcfc; /* Un blanco ligeramente "hueso" para descansar la vista */
-  }
-
-  /* Eliminar bordes redondeados excesivos para un look más arquitectónico */
-  #main-card, #generate-btn {
-    border-radius: 2px;
-  }
-</style>
-
-<script>
-  let isRequesting = false;
-  const states = ['initial', 'loading', 'question', 'error'];
-  const get = (id: string) => document.getElementById(id);
+<script define:vars={{ preguntas }}>
+  let isProcessing = false;
+  let lastIndex = -1;
+  const states = ['initial', 'loading', 'question'];
+  const get = (id) => document.getElementById(id);
 
   window.addEventListener('DOMContentLoaded', () => {
     get('app-container')?.classList.replace('opacity-0', 'opacity-100');
   });
 
-  async function fetchQuestion() {
-    if (isRequesting) return;
-    isRequesting = true;
+  function fetchQuestionLocal() {
+    if (isProcessing || !preguntas.length) return;
     
+    isProcessing = true;
     setUIState('loading');
     resetReveal();
 
-    try {
-      const response = await fetch('/api/trivia', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mode: 'classic' })
+    setTimeout(() => {
+      let newIndex;
+      do {
+        newIndex = Math.floor(Math.random() * preguntas.length);
+      } while (newIndex === lastIndex && preguntas.length > 1);
+      
+      lastIndex = newIndex;
+      const item = preguntas[newIndex];
+      
+      const elements = {
+        'q-text': item.pregunta,
+        'q-answer': item.respuesta,
+        'q-reference': item.referencia,
+        'q-category': item.categoria
+      };
+
+      Object.entries(elements).forEach(([id, value]) => {
+        const el = get(id);
+        if (el) el.innerText = value;
       });
 
-      if (!response.ok) throw new Error();
-      const data = await response.json();
-      
-      get('q-text')!.innerText = data.pregunta;
-      get('q-answer')!.innerText = data.respuesta;
-      get('q-reference')!.innerText = data.referencia;
-      get('q-category')!.innerText = data.categoria || "Doctrinal";
-
       setUIState('question');
-    } catch (err) {
-      get('error-message')!.innerText = "Lo sentimos, no se pudo recuperar la información.";
-      setUIState('error');
-    } finally {
-      isRequesting = false;
-    }
+      isProcessing = false;
+    }, 400); 
   }
 
-  function setUIState(active: string) {
+  function setUIState(active) {
     states.forEach(s => get(`state-${s}`)?.classList.toggle('hidden', s !== active));
-    const btn = get('generate-btn') as HTMLButtonElement;
-    if (btn) btn.disabled = active === 'loading';
+    const btn = get('generate-btn');
+    if (btn) btn.disabled = (active === 'loading');
   }
 
   function resetReveal() {
@@ -147,11 +124,19 @@ import { BookOpen, ChevronRight, RotateCcw, CheckCircle2, Quote } from 'lucide-a
     get('reveal-hint')?.classList.remove('opacity-0');
   }
 
-  get('generate-btn')?.addEventListener('click', fetchQuestion);
-  get('retry-btn')?.addEventListener('click', fetchQuestion);
-  
+  get('generate-btn')?.addEventListener('click', fetchQuestionLocal);
   get('answer-reveal-btn')?.addEventListener('click', () => {
     get('answer-content')?.classList.remove('opacity-0');
     get('reveal-hint')?.classList.add('opacity-0');
   });
 </script>
+
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Crimson+Pro:italic,wght@0,400;0,700;1,400&family=Inter:wght@400;700;900&display=swap');
+  .font-serif { font-family: 'Crimson Pro', serif; }
+  .font-sans { font-family: 'Inter', sans-serif; }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  .animate-fade-in { animation: fadeIn 0.8s ease-in-out forwards; }
+  body { background-color: #fcfcfc; }
+  #main-card, #generate-btn { border-radius: 2px; }
+</style>

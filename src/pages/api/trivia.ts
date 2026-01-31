@@ -2,38 +2,39 @@ import type { APIRoute } from "astro";
 
 export const POST: APIRoute = async ({ request }) => {
   try {
-    // Ya no necesitamos extraer "dificultad" del body, 
-    // pero mantenemos la estructura por si envías otros datos.
-    const body = await request.json().catch(() => ({}));
-
     const apiKey = import.meta.env.GEMINI_API_KEY;
     const modelName = "gemini-2.5-flash-lite"; 
 
+    // Temas de discipulado pero abordados de forma sencilla
+    const temas = ["Arrepentimiento", "Salvación", "Fe", "El pecado", "La mente"];
+    const temaAzar = temas[Math.floor(Math.random() * temas.length)];
+
     const prompt = `
-Actúa como un teólogo y experto en trivias bíblicas. Tu objetivo es generar una pregunta que sea doctrinalmente sólida o de cultura general bíblica.
+Genera una pregunta de trivia bíblica para un grupo de jóvenes. El objetivo es que sea divertida, simple y fácil de responder.
 
-REQUISITOS DE LA PREGUNTA:
-- Puede variar entre temas sencillos (personajes, historias) y temas profundos (doctrina, profecía, teología).
-- La pregunta debe ser clara y no prestarse a confusión.
-- La respuesta debe ser breve (una palabra o una frase corta).
-- Debes incluir la cita bíblica como referencia para validar la respuesta.
+TEMA: ${temaAzar}
 
-RESTRICCIONES EXTRICTAS:
-- No menciones la dificultad en el texto.
-- Evita preguntas extremadamente obvias (ej. ¿Quién murió por nosotros?).
-- NO uses a Adán, Eva, Jonás, Moisés ni Jesús para mantener la trivia variada.
-- Enfócate más en el nuevo testamento.
+REQUISITOS:
+- Usa un lenguaje muy sencillo y amigable (nada de términos técnicos complejos).
+- La pregunta debe ser directa y fácil de entender.
+- La respuesta debe ser muy corta (una o dos palabras).
+- Incluye la cita bíblica (referencia) para que el grupo pueda verificarla.
+- Asegúrate de que la respuesta sea correcta según la Biblia.
 
-FORMATO DE SALIDA (ESTRICTO JSON):
-Responde solo con este objeto:
+RESTRICCIONES:
+- No uses preguntas difíciles ni rebuscadas. 
+- No menciones temas aburridos o demasiado densos.
+- No incluyas explicaciones largas, solo el JSON.
+
+FORMATO DE SALIDA (JSON ESTRICTO):
 {
-  "pregunta": "Aquí va la pregunta",
+  "pregunta": "Aquí la pregunta simple",
   "respuesta": "Aquí la respuesta corta",
   "referencia": "Libro Capítulo:Versículo",
-  "categoria": "General o Doctrinal"
+  "categoria": "${temaAzar}"
 }
 
-Hash de aleatoriedad: ${Date.now()}
+ID de juego: ${Math.random().toString(36).substring(7)}
 `;
 
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
@@ -45,20 +46,21 @@ Hash de aleatoriedad: ${Date.now()}
         contents: [{ parts: [{ text: prompt }] }],
         generationConfig: {
           responseMimeType: "application/json",
-          temperature: 0.8, // Bajamos un poco la temperatura para mayor precisión doctrinal
-          maxOutputTokens: 300
+          temperature: 0.9, // Subimos un poco para que sea más creativo y variado
+          maxOutputTokens: 250
         }
       })
     });
 
     if (!response.ok) {
-      const errorData = await response.json();
-      console.error("Error API Gemini:", errorData);
-      return new Response(JSON.stringify({ error: "Error al conectar con el motor de IA" }), { status: 500 });
+      return new Response(JSON.stringify({ error: "Error de conexión" }), { status: 500 });
     }
 
     const result = await response.json();
-    const rawText = result.candidates?.[0]?.content?.parts?.[0]?.text ?? "{}";
+    let rawText = result.candidates?.[0]?.content?.parts?.[0]?.text ?? "{}";
+
+    // Limpieza por si la IA agrega etiquetas markdown
+    rawText = rawText.replace(/```json|```/g, "").trim();
 
     try {
       const parsed = JSON.parse(rawText);
@@ -67,14 +69,10 @@ Hash de aleatoriedad: ${Date.now()}
         headers: { "Content-Type": "application/json" }
       });
     } catch (parseError) {
-      return new Response(JSON.stringify({ error: "Error procesando el JSON de la IA" }), { status: 500 });
+      return new Response(JSON.stringify({ error: "Error de formato" }), { status: 500 });
     }
 
   } catch (error) {
-    console.error("Error en el servidor:", error);
-    return new Response(
-      JSON.stringify({ error: "Error interno del servidor" }),
-      { status: 500 }
-    );
+    return new Response(JSON.stringify({ error: "Error interno" }), { status: 500 });
   }
 };
