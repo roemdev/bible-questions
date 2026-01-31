@@ -1,7 +1,6 @@
 ---
 /**
- * BibliaGo v2.2 - Edición Local (Sin API)
- * Cambio de fuente de datos de API de Gemini a JSON local.
+ * BibleQuestions v2.3 - Edición API (Conectado a Gemini)
  */
 import { BookOpen, Sparkles, ChevronRight, RotateCcw, CheckCircle2, MoreHorizontal, AlertTriangle } from 'lucide-astro';
 ---
@@ -14,10 +13,10 @@ import { BookOpen, Sparkles, ChevronRight, RotateCcw, CheckCircle2, MoreHorizont
         <BookOpen size={32} strokeWidth={2.5} />
       </div>
       <div>
-        <h1 class="text-2xl font-black text-slate-900 leading-tight tracking-tight">BibliaGo</h1>
+        <h1 class="text-2xl font-black text-slate-900 leading-tight tracking-tight">BibleQuestions</h1>
         <div class="flex items-center space-x-2">
           <span class="w-2 h-2 bg-indigo-500 rounded-full animate-pulse"></span>
-          <p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Base de Datos Local</p>
+          <p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">IA Powered</p>
         </div>
       </div>
     </div>
@@ -42,8 +41,8 @@ import { BookOpen, Sparkles, ChevronRight, RotateCcw, CheckCircle2, MoreHorizont
           <Sparkles size={40} class="text-white" />
         </div>
         <div class="space-y-3">
-          <h3 class="text-2xl font-extrabold text-slate-800">Trivia Diaria</h3>
-          <p class="text-sm text-slate-400 font-medium px-6 leading-relaxed">Estudia las Escrituras con preguntas inteligentes.</p>
+          <h3 class="text-2xl font-extrabold text-slate-800">¡Preguntas bíblicas!</h3>
+          <p class="text-sm text-slate-400 font-medium px-6 leading-relaxed">Esta herramienta está pensada para que la utilices en tus dinámicas de grupo de la iglesia. No tiene costo y es abierta para todo público.</p>
         </div>
       </div>
 
@@ -55,18 +54,6 @@ import { BookOpen, Sparkles, ChevronRight, RotateCcw, CheckCircle2, MoreHorizont
       <div id="state-question" class="hidden grow flex flex-col animate-slide-up">
         <div class="flex justify-between items-center mb-10">
           <span id="q-difficulty" class="px-5 py-2 rounded-full text-[10px] font-black uppercase tracking-widest border shadow-sm transition-all duration-300"></span>
-          
-          <div class="relative group">
-            <button class="cursor-pointer p-2 text-slate-300 hover:text-slate-600 transition-colors" id="report-menu-btn">
-              <MoreHorizontal size={20} />
-            </button>
-            <div id="report-dropdown" class="hidden absolute right-0 mt-2 w-48 bg-white rounded-2xl shadow-xl border border-slate-100 p-2 z-50 animate-fade-in">
-              <button class="cursor-pointer w-full flex items-center space-x-3 px-4 py-3 text-left text-xs font-bold text-slate-600 hover:bg-red-50 hover:text-red-600 rounded-xl transition-all">
-                <AlertTriangle size={16} />
-                <span>Reportar error</span>
-              </button>
-            </div>
-          </div>
         </div>
 
         <div class="grow flex items-center">
@@ -83,7 +70,7 @@ import { BookOpen, Sparkles, ChevronRight, RotateCcw, CheckCircle2, MoreHorizont
               <p id="q-reference" class="text-[11px] font-bold text-indigo-400 bg-indigo-50 px-3 py-1 rounded-lg"></p>
             </div>
             <div id="reveal-hint" class="absolute inset-0 flex items-center justify-center transition-all duration-300">
-               <div class="bg-white px-6 py-3 rounded-2xl shadow-lg border border-slate-100 text-xs font-black text-slate-500 uppercase tracking-tighter group-hover:scale-105 transition-transform">Ver respuesta</div>
+               <div class="bg-white px-6 py-3 rounded-2xl shadow-lg border border-slate-100 text-xs font-black text-slate-500 uppercase tracking-tighter">Ver respuesta</div>
             </div>
           </div>
         </div>
@@ -117,9 +104,6 @@ import { BookOpen, Sparkles, ChevronRight, RotateCcw, CheckCircle2, MoreHorizont
 </style>
 
 <script>
-  // IMPORTANTE: Asegúrate de que el archivo existe en esta ruta
-  import preguntasData from '../data/questions.json';
-
   let currentDifficulty = "Aleatorio";
   let isRequesting = false;
 
@@ -130,13 +114,6 @@ import { BookOpen, Sparkles, ChevronRight, RotateCcw, CheckCircle2, MoreHorizont
     get('app-container')?.classList.remove('opacity-0');
   });
 
-  get('report-menu-btn')?.addEventListener('click', (e) => {
-    e.stopPropagation();
-    get('report-dropdown')?.classList.toggle('hidden');
-  });
-
-  document.addEventListener('click', () => get('report-dropdown')?.classList.add('hidden'));
-
   async function fetchQuestion() {
     if (isRequesting) return;
     isRequesting = true;
@@ -144,50 +121,44 @@ import { BookOpen, Sparkles, ChevronRight, RotateCcw, CheckCircle2, MoreHorizont
     setUIState('loading');
     resetReveal();
 
-    // Pequeño delay de 500ms para mantener la estética de la animación
-    setTimeout(() => {
-      try {
-        let pool = preguntasData;
-        
-        // Filtrar por dificultad si no es aleatorio
-        if (currentDifficulty !== "Aleatorio") {
-          pool = preguntasData.filter(p => p.dificultad === currentDifficulty);
-        }
+    try {
+      // Llamada directa a tu API Route
+      const response = await fetch('/api/trivia', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dificultad: currentDifficulty })
+      });
 
-        if (pool.length === 0) {
-          throw new Error(`No hay preguntas para el nivel ${currentDifficulty}`);
-        }
+      if (!response.ok) throw new Error("Fallo al conectar con la IA");
 
-        // Seleccionar una al azar
-        const randomIndex = Math.floor(Math.random() * pool.length);
-        const data = pool[randomIndex];
-        
-        const realDifficulty = data.dificultad || "Medio";
-        
-        // ACTUALIZAMOS EL DOM
-        get('q-text')!.innerText = data.pregunta;
-        get('q-answer')!.innerText = data.respuesta;
-        get('q-reference')!.innerText = data.referencia;
-        
-        const diffLabel = get('q-difficulty')!;
-        diffLabel.innerText = realDifficulty;
-        
-        const colors: Record<string, string> = {
-          'Básico': 'bg-emerald-50 text-emerald-700 border-emerald-100',
-          'Medio': 'bg-blue-50 text-blue-700 border-blue-100',
-          'Alto': 'bg-purple-50 text-purple-700 border-purple-100'
-        };
-        
-        diffLabel.className = `px-5 py-2 rounded-full text-[10px] font-black uppercase tracking-widest border shadow-sm transition-all duration-300 ${colors[realDifficulty] || colors['Medio']}`;
+      const data = await response.json();
+      
+      // Actualizar datos de la pregunta
+      get('q-text')!.innerText = data.pregunta;
+      get('q-answer')!.innerText = data.respuesta;
+      get('q-reference')!.innerText = data.referencia;
+      
+      // Manejo de la etiqueta de dificultad
+      const realDifficulty = data.dificultad || currentDifficulty;
+      const diffLabel = get('q-difficulty')!;
+      diffLabel.innerText = realDifficulty === 'Aleatorio' ? 'General' : realDifficulty;
+      
+      const colors: Record<string, string> = {
+        'Básico': 'bg-emerald-50 text-emerald-700 border-emerald-100',
+        'Medio': 'bg-blue-50 text-blue-700 border-blue-100',
+        'Alto': 'bg-purple-50 text-purple-700 border-purple-100',
+        'Aleatorio': 'bg-slate-50 text-slate-700 border-slate-100'
+      };
+      
+      diffLabel.className = `px-5 py-2 rounded-full text-[10px] font-black uppercase tracking-widest border shadow-sm transition-all duration-300 ${colors[realDifficulty] || colors['Medio']}`;
 
-        setUIState('question');
-      } catch (err) {
-        get('error-message')!.innerText = err instanceof Error ? err.message : "Error al cargar los datos.";
-        setUIState('error');
-      } finally {
-        isRequesting = false;
-      }
-    }, 500);
+      setUIState('question');
+    } catch (err) {
+      get('error-message')!.innerText = "Hubo un problema al generar la pregunta.";
+      setUIState('error');
+    } finally {
+      isRequesting = false;
+    }
   }
 
   function setUIState(active: string) {
@@ -215,7 +186,7 @@ import { BookOpen, Sparkles, ChevronRight, RotateCcw, CheckCircle2, MoreHorizont
       document.querySelectorAll('.level-btn').forEach(b => {
         b.className = "level-btn cursor-pointer grow flex items-center justify-center py-3 px-4 rounded-xl text-xs font-bold transition-all duration-300 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50";
       });
-      target.className = "level-btn cursor-pointer grow flex items-center justify-center py-3 px-4 rounded-xl text-xs font-bold transition-all duration-300 bg-indigo-600 text-white shadow-lg shadow-indigo-200 scale-[1.02]";
+      target.className = "level-btn cursor-pointer grow flex items-center justify-center py-3 px-4 rounded-xl text-xs font-bold transition-all duration-300 bg-indigo-600 text-white shadow-lg shadow-indigo-100 scale-[1.02]";
       currentDifficulty = target.dataset.level || "Aleatorio";
     });
   });
