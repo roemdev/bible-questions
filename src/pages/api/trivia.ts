@@ -22,6 +22,7 @@ RESTRICCIONES EXTRICTAS:
 - No menciones la dificultad en el texto.
 - Evita preguntas extremadamente obvias (ej. ¿Quién murió por nosotros?).
 - NO uses a Adán, Eva, Jonás, Moisés ni Jesús para mantener la trivia variada.
+- Enfócate más en el nuevo testamento.
 
 FORMATO DE SALIDA (ESTRICTO JSON):
 Responde solo con este objeto:
